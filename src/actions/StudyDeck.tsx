@@ -1,5 +1,6 @@
 import { Action, ActionPanel, Detail } from "@raycast/api";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import TurndownService from "turndown";
 import { useCardInfo } from "../hooks/useCardInfo";
 import { useCards } from "../hooks/useCards";
 
@@ -16,6 +17,10 @@ export const StudyDeck = ({ deckName }: ViewProps) => {
 
     const cards = useCards({ deckName });
     const { card, isLoading, error } = useCardInfo({ cardID: currentCardID });
+
+    const [turndownService] = useState(() => {
+        return new TurndownService();
+        })
 
     useEffect(() => {
             if (!cards || !cards.cardIDs || !cards.cardIDs.length) return;
@@ -50,8 +55,8 @@ export const StudyDeck = ({ deckName }: ViewProps) => {
 
   const view = useMemo(() => {
     if (!front || !back) return "";
-    if (!answerVisible) return `${front}`;
-    return `${front}\n\n\n${back}`;
+    if (!answerVisible) return `${turndownService.turndown(front)}`;
+    return `${turndownService.turndown(front)}\n\n\n\n\n\n${turndownService.turndown(back)}`;
   }, [answerVisible, front, back]);
 
   return (
