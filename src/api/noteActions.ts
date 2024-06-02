@@ -29,7 +29,6 @@ export const addCard = async (values: { front: string; back: string; deck: strin
       },
     });
 
-    console.log(response.data);
   } catch (error) {
     console.error("Error fetching data:", error);
   }

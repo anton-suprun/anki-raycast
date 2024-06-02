@@ -5,7 +5,7 @@ import { useCardInfo } from "../hooks/useCardInfo";
 import { useCards } from "../hooks/useCards";
 
 interface ViewProps {
-deckName: string;
+    deckName: string;
 }
 
 export const StudyDeck = ({ deckName }: ViewProps) => {
@@ -14,18 +14,27 @@ export const StudyDeck = ({ deckName }: ViewProps) => {
     const [front, setFront] = useState<string | undefined>();
     const [back, setBack] = useState<string | undefined>();
     const [answerVisible, setAnswerVisible] = useState<boolean>(false);
+    const path = "/Users/antonsuprun/Library/Application Support/Anki2/User 1/collection.media/"
 
     const cards = useCards({ deckName });
     const { card, isLoading, error } = useCardInfo({ cardID: currentCardID });
 
     const [turndownService] = useState(() => {
-        return new TurndownService();
-        })
+        const td = new TurndownService();
+        td.addRule('image', {
+            filter: 'img',
+            replacement: (content, node, options) => {
+                // @ts-ignore:
+                const fileName = node.attributes["0"].data
+                return `![](<${path + fileName}>)`
+            }
+        });
+        return td;
+    })
 
     useEffect(() => {
             if (!cards || !cards.cardIDs || !cards.cardIDs.length) return;
             // TODO: add logic for handling empty decks
-            console.log("Order: ", ord, "CardIDs: ", cards.cardIDs)
             setCurrentCardID(cards.cardIDs[ord]);
             }, [cards, ord]);
 
@@ -41,11 +50,14 @@ export const StudyDeck = ({ deckName }: ViewProps) => {
 
   const handleNext = useCallback(() => {
     setAnswerVisible(false)
-    setOrd((ord + 1)%cards?.cardIDs?.length)
+    if (!cards || !cards.cardIDs || cards.cardIDs.length == 0) return;
+    const l = cards.cardIDs.length
+    setOrd((ord + 1)%l)
   }, [cards]);
 
   const handlePrev = useCallback(() => {
       setAnswerVisible(false)
+    if (!cards || !cards.cardIDs || cards.cardIDs.length == 0) return;
       if (ord === 0 ) {
           setOrd(cards.cardIDs.length - 1)
        } else {
@@ -55,8 +67,10 @@ export const StudyDeck = ({ deckName }: ViewProps) => {
 
   const view = useMemo(() => {
     if (!front || !back) return "";
-    if (!answerVisible) return `${turndownService.turndown(front)}`;
-    return `${turndownService.turndown(front)}\n\n\n\n\n\n${turndownService.turndown(back)}`;
+    const mdf = turndownService.turndown(front)
+    const mdb = turndownService.turndown(front)
+    if (!answerVisible) return `${mdf}`;
+    return `${mdf}\n\n\n\n\n\n${mdb}`;
   }, [answerVisible, front, back]);
 
   return (

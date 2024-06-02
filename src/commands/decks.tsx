@@ -6,7 +6,7 @@ import { getDeckState } from "../util";
 export default function Decks() {
   const { decks } = useDeckStats();
 
-  const listItems = decks.map((deck) => (
+  const listItems = decks?.map((deck) => (
     <List.Item
       key={deck.deck_id}
       title={deck.name}
@@ -15,7 +15,7 @@ export default function Decks() {
       actions={
         <ActionPanel>
           <Action title={`Study ${deck.name}`} onAction={AddNoteAction} />
-          <Action title="Add note to deck" onAction={AddNoteAction} />
+          <Action title="Add Note To Deck" onAction={AddNoteAction} />
         </ActionPanel>
       }
     />

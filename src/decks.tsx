@@ -1,5 +1,4 @@
 import { Action, ActionPanel, List } from "@raycast/api";
-import { useEffect } from "react";
 import AddCardAction from "./actions/AddCardAction";
 import { CreateDeckAction } from "./actions/CreateDeckAction";
 import { StudyDeck } from "./actions/StudyDeck";
@@ -9,11 +8,7 @@ import { getDeckState } from "./util";
 export default function Decks() {
   const { decks } = useDeckStats();
 
-  useEffect(() => {
-    console.log(decks);
-  }, [decks]);
-
-  const listItems = decks.map((deck) => (
+  const listItems = decks?.map((deck) => (
     <List.Item
       key={deck.deck_id}
       title={deck.name}
