@@ -1,51 +1,67 @@
-import { Note } from "../types";
-import { ankiReq } from "./ankiClient";
-import apiClient from "./axios";
+import { Note } from '../types';
+import { delay } from '../util';
+import { ankiReq } from './ankiClient';
 
-export const addCard = async (values: { front: string; back: string; deck: string; tags: string }): Promise<void> => {
+interface AddCardArgs {
+  front: string;
+  back: string;
+  deck: string;
+  tags: string;
+}
+export const addCard = async (values: AddCardArgs): Promise<void> => {
   try {
-    const response = await apiClient.post("", {
-      action: "addNote",
-      version: 6,
-      params: {
-        note: {
-          deckName: values.deck,
-          modelName: "Basic",
-          fields: {
-            Front: values.front,
-            Back: values.back,
-          },
-          options: {
-            allowDuplicate: false,
-            duplicateScope: "deck",
-            duplicateScopeOptions: {
-              deckName: "Default",
-              checkChildren: false,
-              checkAllModels: false,
-            },
-          },
-          tags: values.tags.split(","),
+    await ankiReq('addNote', {
+      note: {
+        deckName: values.deck,
+        modelName: 'Basic',
+        fields: {
+          Front: values.front,
+          Back: values.back,
         },
+        options: {
+          allowDuplicate: false,
+          duplicateScope: 'deck',
+          duplicateScopeOptions: {
+            deckName: 'Default',
+            checkChildren: false,
+            checkAllModels: false,
+          },
+        },
+        tags: values.tags.split(','),
       },
     });
-
   } catch (error) {
-    console.error("Error fetching data:", error);
+    throw new Error('Could not create new card');
   }
 };
 
 export const notesInfo = async (noteID: number): Promise<Note[] | undefined> => {
   try {
-    return await ankiReq("notesInfo", {
+    return await ankiReq('notesInfo', {
       notes: [noteID],
     });
   } catch (error) {}
 };
 
-export const findNotes = async (deckName: string): Promise<number[] | any> => {
+// TODO: update it to take query as arg
+export const findNotes = async (query: string | undefined): Promise<Note[] | undefined> => {
+  const defaultQuery = 'deck:_*';
+
+  if (!query || query.trim().length == 0) {
+    query = defaultQuery;
+  }
+
   try {
-    return await ankiReq("findNotes", {
-      query: `deck:${deckName}`,
+    const noteIDs: number[] = await ankiReq('findNotes', {
+      query: query,
     });
-  } catch (error) {}
+    await delay(2);
+    const notesInfo: Note[] = await ankiReq('notesInfo', {
+      notes: noteIDs,
+    });
+    return notesInfo;
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
 };

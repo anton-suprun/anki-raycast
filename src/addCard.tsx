@@ -1,5 +1,5 @@
-import AddCardAction from "./actions/AddCardAction";
+import AddCardAction from './actions/AddCardAction';
 
-export default function AddNote() {
+export default function AddCardCommand() {
   return <AddCardAction />;
 }

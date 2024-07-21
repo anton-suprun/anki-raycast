@@ -7,7 +7,10 @@
 
 /* eslint-disable @typescript-eslint/ban-types */
 
-type ExtensionPreferences = {}
+type ExtensionPreferences = {
+  /** Anki Path - Typically found in /Users/antonsuprun/Library/Application Support/Anki2/User 1/ */
+  "ankiPath": string
+}
 
 /** Preferences accessible in all the extension's commands */
 declare type Preferences = ExtensionPreferences
@@ -15,23 +18,23 @@ declare type Preferences = ExtensionPreferences
 declare namespace Preferences {
   /** Preferences accessible in the `decks` command */
   export type Decks = ExtensionPreferences & {}
+  /** Preferences accessible in the `browseCards` command */
+  export type BrowseCards = ExtensionPreferences & {}
   /** Preferences accessible in the `addCard` command */
   export type AddCard = ExtensionPreferences & {}
+  /** Preferences accessible in the `test` command */
+  export type Test = ExtensionPreferences & {}
 }
 
 declare namespace Arguments {
   /** Arguments passed to the `decks` command */
   export type Decks = {}
+  /** Arguments passed to the `browseCards` command */
+  export type BrowseCards = {}
   /** Arguments passed to the `addCard` command */
   export type AddCard = {}
+  /** Arguments passed to the `test` command */
+  export type Test = {}
 }
 
 
-declare module "swift:*" {
-  function run<T = unknown, U = any>(command: string, input?: U): Promise<T>;
-  export default run;
-	export class SwiftError extends Error {
-    stderr: string;
-    stdout: string;
-  }
-}

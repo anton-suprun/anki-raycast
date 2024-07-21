@@ -1,90 +1,141 @@
-import { Action, ActionPanel, Detail } from "@raycast/api";
-import { useState, useEffect, useMemo, useCallback } from "react";
-import TurndownService from "turndown";
-import { useCardInfo } from "../hooks/useCardInfo";
-import { useCards } from "../hooks/useCards";
+import { Action, ActionPanel, Detail, showToast } from '@raycast/api';
+import { useState, useMemo, useCallback, useEffect } from 'react';
+import { Card, CardField, CardFieldObj, Ease, ShortcutDictionary } from '../types';
+import { useCachedPromise } from '@raycast/utils';
+import cardActions from '../api/cardActions';
+import useTurndown from '../hooks/useTurndown';
+import useAnkiConfig from '../hooks/useAnkiConfig';
 
-interface ViewProps {
-    deckName: string;
+interface Props {
+  deckName: string;
 }
 
-export const StudyDeck = ({ deckName }: ViewProps) => {
-    const [currentCardID, setCurrentCardID] = useState<number | undefined>();
-    const [ord, setOrd] = useState<number>(0);
-    const [front, setFront] = useState<string | undefined>();
-    const [back, setBack] = useState<string | undefined>();
-    const [answerVisible, setAnswerVisible] = useState<boolean>(false);
-    const path = "/Users/antonsuprun/Library/Application Support/Anki2/User 1/collection.media/"
+export const StudyDeck = ({ deckName }: Props) => {
+  const { mediaPath } = useAnkiConfig();
+  const { turndown } = useTurndown(mediaPath);
 
-    const cards = useCards({ deckName });
-    const { card, isLoading, error } = useCardInfo({ cardID: currentCardID });
+  const {
+    data: cards,
+    isLoading: cardsLoading,
+    error: cardsError,
+  } = useCachedPromise(cardActions.findCards, [deckName]);
 
-    const [turndownService] = useState(() => {
-        const td = new TurndownService();
-        td.addRule('image', {
-            filter: 'img',
-            replacement: (content, node, options) => {
-                // @ts-ignore:
-                const fileName = node.attributes["0"].data
-                return `![](<${path + fileName}>)`
-            }
-        });
-        return td;
-    })
+  const {
+    data: cardsDueInfo,
+    isLoading: cardsDueLoading,
+    error: cardsDueError,
+    revalidate,
+  } = useCachedPromise(cardActions.cardsDueInfo, [cards]);
 
-    useEffect(() => {
-            if (!cards || !cards.cardIDs || !cards.cardIDs.length) return;
-            // TODO: add logic for handling empty decks
-            setCurrentCardID(cards.cardIDs[ord]);
-            }, [cards, ord]);
+  const shortcuts = useMemo((): ShortcutDictionary => {
+    return {
+      showCardInfo: { modifiers: ['cmd'], key: 'i' },
+      againAction: { modifiers: ['ctrl'], key: '1' },
+      hardAction: { modifiers: ['ctrl'], key: '2' },
+      easyAction: { modifiers: ['ctrl'], key: '4' },
+    };
+  }, []);
 
-    useEffect(() => {
-            if (!currentCardID || !card || !card.length) return;
-            setFront(card[0].fields.Front.value);
-            setBack(card[0].fields.Back.value);
-    }, [card]);
+  const [showAnswer, setShowAnswer] = useState(false);
+  const [showCardInfo, setShowCardInfo] = useState(false);
+  const [currentCard, setCurrentCard] = useState<Card | undefined>();
 
-    const handleShowAnswer = useCallback(() => {
-            setAnswerVisible(true);
-    }, []);
+  const parseFields = useCallback((fields: CardFieldObj): Array<CardField> => {
+    return Object.entries(fields).map(([fieldName, field]) => ({
+      fieldName: fieldName,
+      value: field.value,
+    }));
+  }, []);
 
-  const handleNext = useCallback(() => {
-    setAnswerVisible(false)
-    if (!cards || !cards.cardIDs || cards.cardIDs.length == 0) return;
-    const l = cards.cardIDs.length
-    setOrd((ord + 1)%l)
-  }, [cards]);
+  const renderMarkdownString = useCallback(
+    (fields: Array<CardField>, showAnswer: boolean) => {
+      if (!turndown) return;
+      const { value: questionValue } = fields[0];
+      const question = `${turndown.turndown(questionValue)}\n`;
 
-  const handlePrev = useCallback(() => {
-      setAnswerVisible(false)
-    if (!cards || !cards.cardIDs || cards.cardIDs.length == 0) return;
-      if (ord === 0 ) {
-          setOrd(cards.cardIDs.length - 1)
-       } else {
-           setOrd(ord - 1)
-       }
-  }, [cards]);
+      const answers = fields.slice(1).map(answer => {
+        return `\n---\n${turndown.turndown(answer.value)}\n`;
+      });
 
-  const view = useMemo(() => {
-    if (!front || !back) return "";
-    const mdf = turndownService.turndown(front)
-    const mdb = turndownService.turndown(back)
-    if (!answerVisible) return `# Front\n\n___\n\n${mdf}\n\n___\n\n`;
-    return `# Front\n\n___\n\n${mdf}\n\n___\n\n# Back\n\n___\n\n${mdb}`;
-  }, [answerVisible, front, back]);
+      return showAnswer ? question + answers.join('\n') : question;
+    },
+    [turndown]
+  );
+
+  //==================
+  useEffect(() => {
+    if (!cardsDueInfo) return;
+    console.log('cards due changed', cardsDueInfo.length);
+    setCurrentCard(cardsDueInfo[0]);
+  }, [cardsDueInfo]);
+  //==================
+
+  const cardView = useMemo(() => {
+    if (!cardsDueInfo || cardsDueLoading) return;
+    if (cardsDueError) {
+      showToast({
+        title: 'Error: cardsDueError',
+        message: `Getting cards due failed`,
+      });
+    }
+    if (!cardsDueInfo.length) return '## Congratulations! You have finished this deck for now.';
+    return renderMarkdownString(parseFields(cardsDueInfo[0].fields), showAnswer);
+  }, [showAnswer, cardsDueInfo, parseFields]);
+
+  const handleShowCardInfo = () => setShowCardInfo(!showCardInfo);
+  const handleShowAnswer = () => setShowAnswer(!showAnswer);
+  const handleAnswerCard = useCallback(
+    async (ease: Ease) => {
+      if (!currentCard) return;
+      try {
+        const success = await cardActions.answerCard(currentCard.cardId, ease);
+
+        if (!success) return;
+        setShowAnswer(false);
+        revalidate();
+      } catch (error) {
+        console.error(error);
+      }
+    },
+    [currentCard]
+  );
 
   return (
-    <>
-      <Detail
-        markdown={view}
-        actions={
-          <ActionPanel>
+    <Detail
+      markdown={cardView}
+      isLoading={cardsLoading || cardsDueLoading}
+      actions={
+        <ActionPanel>
+          {!showAnswer ? (
             <Action title="Show Answer" onAction={handleShowAnswer} />
-            <Action title="Next Card" onAction={handleNext} />
-            <Action title="Previous Card" onAction={handlePrev} />
-          </ActionPanel>
-        }
-      />
-    </>
+          ) : (
+            <>
+              <Action title="Good" onAction={async () => await handleAnswerCard(Ease.Good)} />
+              <Action
+                title="Again"
+                shortcut={shortcuts.againAction}
+                onAction={async () => await handleAnswerCard(Ease.Again)}
+              />
+              <Action
+                title="Hard"
+                shortcut={shortcuts.hardAction}
+                onAction={async () => await handleAnswerCard(Ease.Hard)}
+              />
+              <Action
+                title="Easy"
+                shortcut={shortcuts.easyAction}
+                onAction={async () => await handleAnswerCard(Ease.Easy)}
+              />
+            </>
+          )}
+          <ActionPanel.Section />
+          <Action
+            title="Show Card Info"
+            shortcut={shortcuts.showAnswer}
+            onAction={handleShowCardInfo}
+          />
+        </ActionPanel>
+      }
+    />
   );
 };

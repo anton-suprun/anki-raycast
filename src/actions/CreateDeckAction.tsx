@@ -1,15 +1,25 @@
-import { Form, ActionPanel, Action, showToast, ToastStyle, useNavigation } from "@raycast/api";
-import { createDeck } from "../api/deckActions";
+import { Form, ActionPanel, Action, showToast, useNavigation, Toast } from '@raycast/api';
+import { createDeck } from '../api/deckActions';
 
-export const CreateDeckAction = () => {
+const CreateDeckAction = () => {
   const { pop } = useNavigation();
+
   const handleSubmit = async (values: { deckName: string }) => {
-    await createDeck(values.deckName);
-    await showToast({
-      style: ToastStyle.Success,
-      title: "Created deck",
-      message: values.deckName,
-    });
+    try {
+      await createDeck(values.deckName);
+
+      await showToast({
+        style: Toast.Style.Success,
+        title: 'Created deck',
+        message: values.deckName,
+      });
+    } catch (err) {
+      await showToast({
+        style: Toast.Style.Failure,
+        title: 'Error',
+        message: values.deckName,
+      });
+    }
     pop();
   };
 
@@ -17,7 +27,7 @@ export const CreateDeckAction = () => {
     <Form
       actions={
         <ActionPanel>
-          <Action.SubmitForm title="Add Note" onSubmit={handleSubmit} />
+          <Action.SubmitForm title="Create Deck" onSubmit={handleSubmit} />
         </ActionPanel>
       }
     >
@@ -25,3 +35,4 @@ export const CreateDeckAction = () => {
     </Form>
   );
 };
+export default CreateDeckAction;

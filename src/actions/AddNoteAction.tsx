@@ -1,9 +1,9 @@
-import { Action, ActionPanel, Form } from "@raycast/api";
-import { addCard } from "../api/noteActions";
-import { useDeckNames } from "../hooks/useDeckNames";
+import { Action, ActionPanel, Form } from '@raycast/api';
+import { addCard } from '../api/noteActions';
+import { useDeckStats } from '../hooks/useDeckStats';
 
 export default function AddCardAction() {
-  const { names, isLoading, error } = useDeckNames();
+  const { decks, isLoading, error } = useDeckStats();
   return (
     <Form
       actions={
@@ -13,8 +13,8 @@ export default function AddCardAction() {
       }
     >
       <Form.Dropdown id="decks" title="Deck">
-        {names.map((deck) => (
-          <Form.Dropdown.Item key={deck} title={deck} value={deck} />
+        {decks?.map(deck => (
+          <Form.Dropdown.Item key={deck.deck_id} title={deck.name} value={deck.name} />
         ))}
       </Form.Dropdown>
       <Form.TextField id="front" title="Card front" />

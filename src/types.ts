@@ -1,3 +1,18 @@
+import { Keyboard } from '@raycast/api';
+
+export interface AnkiCollectionData {
+  crt: number;
+}
+
+// Base type for AnkiResponse with generic result and error types
+export type AnkiResponse<T, E> = {
+  result: T;
+  error: E;
+};
+
+export type DeckName = {
+  [deckName: string]: number;
+};
 export type DeckStats = {
   deck_id: number;
   name: string;
@@ -7,16 +22,28 @@ export type DeckStats = {
   total_in_deck: number;
 };
 
+export interface CardField {
+  fieldName: string;
+  value: string;
+}
+export type CardFieldObj = {
+  [fieldName: string]: { value: string; order: number };
+};
+
+export enum Ease {
+  Again = 1,
+  Hard = 2,
+  Good = 3,
+  Easy = 4,
+}
+
 export type Card = {
   answer: string;
   question: string;
   deckName: string;
   modelName: string;
   fieldOrder: number;
-  fields: {
-    Front: { value: string; order: number };
-    Back: { value: string; order: number };
-  };
+  fields: CardFieldObj;
   css: string;
   cardId: number;
   interval: number;
@@ -36,13 +63,14 @@ export type Note = {
   modelName: string;
   tags: string[];
   fields: {
-    Front: {
-      value: string;
-      order: number;
-    };
-    Back: {
+    [fieldName: string]: {
       value: string;
       order: number;
     };
   };
+  cards: number[];
+};
+
+export type ShortcutDictionary = {
+  [shortcut: string]: Keyboard.Shortcut;
 };

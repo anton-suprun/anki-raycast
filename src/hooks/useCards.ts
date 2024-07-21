@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { findCards } from "../api/cardActions";
+import { useEffect, useState } from 'react';
+import { findCards } from '../api/cardActions';
 
 interface HookProps {
   deckName: string;
@@ -19,8 +19,8 @@ export const useCards = ({ deckName }: HookProps): HookData => {
   useEffect(() => {
     setIsLoading(true);
     findCards(deckName)
-      .then((cardIDs) => setCardIDs(cardIDs))
-      .catch((err) => setError(err))
+      .then(cardIDs => setCardIDs(cardIDs))
+      .catch(err => setError(err))
       .finally(() => setIsLoading(false));
   }, [deckName]);
 

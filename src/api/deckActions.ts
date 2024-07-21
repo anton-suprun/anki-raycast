@@ -1,45 +1,33 @@
-import { DeckStats } from "../types";
-import { ankiReq } from "./ankiClient";
-import apiClient from "./axios";
-export const getDeckNames = async (): Promise<string[]> => {
-  try {
-    return await ankiReq("deckNames", null);
-  } catch (error) {
-    console.error("Error fetching data:", error);
-    return [];
-  }
-};
-
-export const getDeckStats = async (deckNames: string[]): Promise<DeckStats[]> => {
-  try {
-    const response = await apiClient.get("", {
-      data: {
-        action: "getDeckStats",
-        version: 6,
-        params: {
-          decks: deckNames,
-        },
-      },
-    });
-    const data = response.data;
-
-    if (data.error) {
-      console.error(data.error);
-      return [];
-    }
-    return Object.values(data.result);
-  } catch (error) {
-    console.error("Error fetching data:", error);
-    return [];
-  }
-};
+import { DeckName, DeckStats } from '../types';
+import { combineDeckInfo, delay } from '../util';
+import { ankiReq } from './ankiClient';
 
 export const createDeck = async (deckName: string): Promise<void> => {
   try {
-    await ankiReq("createDeck", { deck: deckName });
+    await ankiReq('createDeck', { deck: deckName });
   } catch (error) {
-    console.log("Could not create deck", error);
+    throw new Error('Could not create deck');
   }
 };
 
-export const deleteDeck = async (values: { deckName: string }): Promise<void> => {};
+export const deleteDeck = async (deckName: string): Promise<void> => {
+  try {
+    await ankiReq('deleteDecks', { decks: [deckName], cardsToo: true });
+  } catch (error) {
+    throw new Error(`Could not delete deck: ${deckName}`);
+  }
+};
+
+export const getDecks = async (): Promise<DeckStats[]> => {
+  try {
+    const deckNames: DeckName = await ankiReq('deckNamesAndIds');
+    await delay(1); // socket times out without this; investigate why later
+    const deckStats: { [key: string]: DeckStats } = await ankiReq('getDeckStats', {
+      decks: deckNames,
+    });
+    return combineDeckInfo(deckStats, deckNames);
+  } catch (error) {
+    console.log(error);
+    throw new Error('Could not retrieve deck. Is Anki on?');
+  }
+};
