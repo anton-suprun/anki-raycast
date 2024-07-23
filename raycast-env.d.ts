@@ -8,8 +8,8 @@
 /* eslint-disable @typescript-eslint/ban-types */
 
 type ExtensionPreferences = {
-  /** Anki Path - Typically found in /Users/antonsuprun/Library/Application Support/Anki2/User 1/ */
-  "ankiPath": string
+  /** anki-connect port - Port that anki-connect uses. (Default: 8765) */
+  "port"?: string
 }
 
 /** Preferences accessible in all the extension's commands */
@@ -22,8 +22,6 @@ declare namespace Preferences {
   export type BrowseCards = ExtensionPreferences & {}
   /** Preferences accessible in the `addCard` command */
   export type AddCard = ExtensionPreferences & {}
-  /** Preferences accessible in the `test` command */
-  export type Test = ExtensionPreferences & {}
 }
 
 declare namespace Arguments {
@@ -33,8 +31,6 @@ declare namespace Arguments {
   export type BrowseCards = {}
   /** Arguments passed to the `addCard` command */
   export type AddCard = {}
-  /** Arguments passed to the `test` command */
-  export type Test = {}
 }
 
 

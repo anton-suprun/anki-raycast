@@ -1,9 +1,13 @@
+import { useCachedPromise } from '@raycast/utils';
 import { useMemo } from 'react';
 import TurndownService from 'turndown';
+import mediaActions from '../api/mediaActions';
 
-function useTurndown(mediaPath: string) {
+function useTurndown() {
+  const { data: ankiMediaPath, isLoading, error } = useCachedPromise(mediaActions.getMediaDirPath);
+
   const turndown = useMemo((): TurndownService | undefined => {
-    if (!mediaPath) return;
+    if (isLoading || error || !ankiMediaPath) return;
 
     const td = new TurndownService();
 
@@ -11,12 +15,12 @@ function useTurndown(mediaPath: string) {
       filter: 'img',
       replacement: (_, node) => {
         const imgNode = node as HTMLImageElement;
-        return `![](<${mediaPath}${imgNode.getAttribute('src')}>)`;
+        return `![](<${ankiMediaPath}/${imgNode.getAttribute('src')}>)`;
       },
     });
 
     return td;
-  }, [mediaPath]);
+  }, [ankiMediaPath, isLoading, error]);
 
   return {
     turndown,

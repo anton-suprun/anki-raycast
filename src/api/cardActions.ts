@@ -1,64 +1,46 @@
 import { Card } from '../types';
-import { delay } from '../util';
 import { ankiReq } from './ankiClient';
+import { delay } from '../util';
 
 export default {
   answerCard: async (cardID: number, ease: number): Promise<boolean | undefined> => {
     if (!cardID) return;
 
-    try {
-      const exists: [boolean] = await ankiReq('answerCards', {
-        answers: [
-          {
-            cardId: cardID,
-            ease: ease,
-          },
-        ],
-      });
+    const exists: [boolean] = await ankiReq('answerCards', {
+      answers: [
+        {
+          cardId: cardID,
+          ease: ease,
+        },
+      ],
+    });
 
-      if (!exists) {
-        throw new Error(`Card with ID: [${cardID}] doesn't exist in this deck`);
-      }
-
-      return true;
-    } catch (error) {
-      console.error(error);
-      throw error; // Re-throw the error or handle it as needed
+    if (!exists) {
+      throw new Error(`Card with ID: [${cardID}] doesn't exist in this deck`);
     }
+
+    return true;
   },
 
   areDue: async (cardIDs: number[] | undefined): Promise<boolean[] | undefined> => {
     if (!cardIDs) return;
-    try {
-      return await ankiReq('cardsInfo', {
-        cards: cardIDs,
-      });
-    } catch (error) {
-      console.error(error);
-    }
+    return await ankiReq('cardsInfo', {
+      cards: cardIDs,
+    });
   },
 
   cardInfo: async (cardID: number): Promise<Card[] | undefined> => {
     if (!cardID) return;
-    try {
-      return await ankiReq('cardsInfo', {
-        cards: [cardID],
-      });
-    } catch (error) {
-      console.error(error);
-    }
+    return await ankiReq('cardsInfo', {
+      cards: [cardID],
+    });
   },
 
   cardsInfo: async (cardIDs: number[] | undefined | unknown): Promise<Card[] | undefined> => {
     if (!cardIDs) return;
-
-    try {
-      return await ankiReq('cardsInfo', {
-        cards: cardIDs,
-      });
-    } catch (error) {
-      console.error(error);
-    }
+    return await ankiReq('cardsInfo', {
+      cards: cardIDs,
+    });
   },
 
   cardsDueInfo: async (cardIDs: number[] | undefined): Promise<Card[] | undefined> => {
@@ -96,38 +78,31 @@ export default {
 
   findCards: async (deckName: string): Promise<number[] | undefined> => {
     const deckQuery = `"deck:${deckName}"`;
-    try {
-      const cards: number[] = await ankiReq('findCards', {
-        query: deckQuery, // TODO: figure out the correct format to pass query search string
-      });
-      return cards;
-    } catch (error) {
-      console.error(error);
-    }
+    const cards: number[] = await ankiReq('findCards', {
+      query: deckQuery, // TODO: figure out the correct format to pass query search string
+    });
+    return cards;
   },
 
   findCardsInfo: async (query: string): Promise<Card[]> => {
     const defaultQuery = 'deck:_*';
 
+    await delay(2);
+
     if (!query || !query.trim()) {
       query = defaultQuery;
     }
 
-    try {
-      const cardIDs: number[] = await ankiReq('findCards', {
-        query: query,
-      });
+    const cardIDs: number[] = await ankiReq('findCards', {
+      query: query,
+    });
 
-      await delay(1);
+    await delay(2);
 
-      const notesInfo: Card[] = await ankiReq('cardsInfo', {
-        cards: cardIDs,
-      });
+    const cardsInfo: Card[] = await ankiReq('cardsInfo', {
+      cards: cardIDs,
+    });
 
-      return notesInfo;
-    } catch (error) {
-      console.error(error);
-      throw error;
-    }
+    return cardsInfo;
   },
 };

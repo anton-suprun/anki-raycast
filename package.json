@@ -2,16 +2,18 @@
   "$schema": "https://www.raycast.com/schemas/extension.json",
   "name": "anki",
   "title": "Anki",
-  "description": "Control Anki with Raycast",
-  "icon": "command-icon.png",
+  "description": "Anki extension for Raycast",
+  "icon": "extension-icon.png",
+  "categories": ["Productivity", "Applications", "Other"],
+  "keywords": ["memory", "flashcards", "study"],
   "author": "anton-suprun",
   "preferences": [
     {
-      "name": "ankiPath",
-      "type": "directory",
-      "required": true,
-      "title": "Anki Path",
-      "description": "Typically found in /Users/antonsuprun/Library/Application Support/Anki2/User 1/"
+      "name": "port",
+      "type": "textfield",
+      "required": false,
+      "title": "anki-connect port",
+      "description": "Port that anki-connect uses. (Default: 8765)"
     }
   ],
   "license": "MIT",
@@ -35,13 +37,6 @@
       "title": "Add Card",
       "subtitle": "Anki",
       "description": "Add a card to a deck in Anki",
-      "mode": "view"
-    },
-    {
-      "name": "test",
-      "title": "Test Command",
-      "subtitle": "Anki",
-      "description": "Testing things",
       "mode": "view"
     }
   ],

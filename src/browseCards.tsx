@@ -1,51 +1,123 @@
-import { Action, ActionPanel, List } from '@raycast/api';
+import AddCardAction from './actions/AddCardAction';
+import ViewCardMedia from './actions/ViewCardMedia';
+import cardActions from './api/cardActions';
+import guiActions from './api/guiActions';
+import noteActions from './api/noteActions';
+import useTurndown from './hooks/useTurndown';
+import { Action, ActionPanel, confirmAlert, List, showToast, Toast } from '@raycast/api';
+import { AnkiError } from './error/AnkiError';
+import { Card, FieldMediaMap, ShortcutDictionary } from './types';
+import { getCardType, parseMediaFiles } from './util';
 import { useCachedPromise } from '@raycast/utils';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import useAnkiConfig from './hooks/useAnkiConfig';
-import useTurndown from './hooks/useTurndown';
-import { Card, ShortcutDictionary } from './types';
-import cardActions from './api/cardActions';
-import { getCardType, getQueueType } from './util';
-import AddCardAction from './actions/AddCardAction';
 
-export default function BrowseCards() {
-  const { mediaPath } = useAnkiConfig();
-  const { turndown } = useTurndown(mediaPath);
+interface Props {
+  deckName?: string;
+}
+export default function BrowseCards({ deckName }: Props) {
+  const { turndown } = useTurndown();
 
   const shortcuts = useMemo((): ShortcutDictionary => {
     return {
+      addCard: { modifiers: ['cmd'], key: 'n' },
       deleteCard: { modifiers: ['cmd'], key: 'd' },
-      addCard: { modifiers: ['cmd'], key: 'd' },
-      toggleMetadata: { modifiers: ['cmd'], key: 'd' },
       openAnkiManual: { modifiers: ['cmd'], key: 'o' },
+      guiBrowse: { modifiers: ['cmd'], key: 'g' },
     };
   }, []);
 
-  const handleUpdateQuery = useCallback((text: string) => {
-    setQuery(text);
-  }, []);
-
-  const [query, setQuery] = useState<string>('');
-  const [metadataVisible, setMetadataVisible] = useState<boolean>(true);
+  const [query, setQuery] = useState<string>(() => deckName || '');
+  const [metadataVisible, setMetadataVisible] = useState<boolean>(false);
+  const [selectedCardID, setSelectedCardID] = useState<string | null>(null);
+  const [cardMedia, setCardMedia] = useState<FieldMediaMap>();
 
   const { data, isLoading, error, revalidate } = useCachedPromise(cardActions.findCardsInfo, [
     query,
   ]);
 
   useEffect(() => {
-    if (isLoading || error || !data) return;
-    console.log(data[0]);
-  }, [data, isLoading, error]);
+    if (error) {
+      const isAnkiError = error instanceof AnkiError;
+      showToast({
+        title: isAnkiError ? 'Anki Error' : 'Error',
+        message: isAnkiError ? error.message : 'Unknown error occured',
+        style: Toast.Style.Failure,
+      });
+    }
+  }, [error]);
 
-  const handleDeleteCard = useCallback(() => {
-    // delete card
-    console.log('deleteing card');
+  const handleUpdateQuery = useCallback(
+    (text: string) => {
+      setQuery(text);
+    },
+    [query]
+  );
+
+  useEffect(() => {
+    if (!data || !selectedCardID) return;
+    const card = data.find(item => item.cardId === Number(selectedCardID));
+    if (!card) {
+      return;
+    }
+
+    const newFieldMediaMap: FieldMediaMap = {};
+
+    Object.entries(card.fields).forEach(([fieldName, fieldObj]) => {
+      const mediaFiles = parseMediaFiles(fieldObj.value);
+      if (mediaFiles.length > 0) {
+        newFieldMediaMap[fieldName] = mediaFiles;
+      }
+    });
+
+    setCardMedia(newFieldMediaMap);
+  }, [data, selectedCardID]);
+
+  const handleDeleteCard = useCallback(async (cardId: string | null) => {
+    if (!cardId) return;
+
+    const deleteConfirm = await confirmAlert({
+      title: `Are you sure you want to delete this card?`,
+    });
+
+    if (!deleteConfirm) return;
+
+    try {
+      await noteActions.deleteNote(Number(cardId));
+      showToast({
+        title: 'Deleted card successfully',
+        style: Toast.Style.Success,
+      });
+      revalidate();
+    } catch (error) {
+      const isAnkiError = error instanceof AnkiError;
+      showToast({
+        title: isAnkiError ? 'Anki Error' : 'Error',
+        message: isAnkiError ? error.message : 'Unknown error occured',
+        style: Toast.Style.Failure,
+      });
+    }
   }, []);
 
   const handleToggleMetadata = useCallback(
     () => setMetadataVisible(!metadataVisible),
     [metadataVisible]
   );
+
+  const handleGuiBrowse = useCallback(async () => {
+    try {
+      await guiActions.guiBrowse(query);
+    } catch (error: unknown) {
+      if (error instanceof AnkiError) {
+        showToast({
+          title: 'Anki Error',
+          message: error.message,
+          style: Toast.Style.Failure,
+        });
+      }
+    }
+  }, [query]);
+
+  const handleSelectionChange = useCallback((id: string | null) => setSelectedCardID(id), []);
 
   const listItemActions = useMemo(() => {
     return (
@@ -62,24 +134,38 @@ export default function BrowseCards() {
             shortcut={shortcuts.addCard}
             target={<AddCardAction />}
           />
-          <Action title="Delete Card" shortcut={shortcuts.deleteCard} onAction={handleDeleteCard} />
-        </ActionPanel.Section>
-        <ActionPanel.Section>
-          <Action.OpenInBrowser
-            url="https://docs.ankiweb.net/searching.html"
-            title="Open Anki Manual"
-            shortcut={shortcuts.openAnkiManual}
+          <Action
+            title="Delete Card"
+            shortcut={shortcuts.deleteCard}
+            onAction={() => handleDeleteCard(selectedCardID)}
           />
-
-          <Action title="Delete Card" shortcut={shortcuts.deleteCard} onAction={handleDeleteCard} />
+          {cardMedia && (
+            <Action.Push
+              title="View Card Files"
+              shortcut={shortcuts.viewFiles}
+              target={<ViewCardMedia cardMedia={cardMedia} />}
+            />
+          )}
         </ActionPanel.Section>
+        <ActionPanel.Section />
+        <Action
+          title="Browse Cards In Anki"
+          shortcut={shortcuts.guiBrowse}
+          onAction={handleGuiBrowse}
+        />
+        <ActionPanel.Section />
+        <Action.OpenInBrowser
+          url="https://docs.ankiweb.net/searching.html"
+          title="Open Anki Manual"
+          shortcut={shortcuts.openAnkiManual}
+        />
       </ActionPanel>
     );
-  }, [handleDeleteCard, handleToggleMetadata, shortcuts]);
+  }, [handleDeleteCard, handleToggleMetadata, handleGuiBrowse, shortcuts, cardMedia]);
 
-  const listItems = useCallback(
+  const handleMapListItems = useCallback(
     (card: Card) => {
-      if (!card || !turndown) return <></>;
+      if (!card || !turndown) return null;
 
       const fields = Object.entries(card.fields);
       const title = turndown.turndown(fields[0][1].value);
@@ -90,35 +176,25 @@ export default function BrowseCards() {
 
       return (
         <List.Item
-          actions={listItemActions}
+          id={card.cardId.toString()}
           key={card.cardId}
-          title={{ value: title, tooltip: 'tooltip' }}
+          actions={listItemActions}
+          title={title}
           detail={
             <List.Item.Detail
               markdown={markdown}
+              key={card.cardId}
               metadata={
                 metadataVisible && (
                   <List.Item.Detail.Metadata>
                     <List.Item.Detail.Metadata.Label title="Deck" text={card.deckName} />
                     <List.Item.Detail.Metadata.Label title="Model" text={card.modelName} />
                     <List.Item.Detail.Metadata.Label
-                      title="Interval"
-                      text={`${card.interval} days`}
-                    />
-                    <List.Item.Detail.Metadata.Label
-                      title="Due"
-                      text={new Date(card.due * 1000).toLocaleDateString()}
-                    />
-                    <List.Item.Detail.Metadata.Label
                       title="Repetitions"
                       text={card.reps.toString()}
                     />
                     <List.Item.Detail.Metadata.Label title="Lapses" text={card.lapses.toString()} />
                     <List.Item.Detail.Metadata.Label title="Type" text={getCardType(card.type)} />
-                    <List.Item.Detail.Metadata.Label
-                      title="Queue"
-                      text={getQueueType(card.queue)}
-                    />
                     <List.Item.Detail.Metadata.Label
                       title="Last Modified"
                       text={new Date(card.mod * 1000).toLocaleString()}
@@ -132,7 +208,7 @@ export default function BrowseCards() {
         />
       );
     },
-    [turndown, isLoading, metadataVisible, handleToggleMetadata]
+    [handleToggleMetadata, turndown, isLoading, metadataVisible, listItemActions]
   );
 
   return (
@@ -141,9 +217,9 @@ export default function BrowseCards() {
       searchBarPlaceholder="Search cards..."
       isLoading={isLoading}
       searchText={query}
+      onSelectionChange={handleSelectionChange}
       onSearchTextChange={handleUpdateQuery}
-    >
-      {data && data?.map(listItems)}{' '}
-    </List>
+      children={data?.map(handleMapListItems)}
+    />
   );
 }

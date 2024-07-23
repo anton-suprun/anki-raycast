@@ -1,10 +1,7 @@
-import { useMemo } from 'react';
-import { getPreferenceValues } from '@raycast/api';
-
 function useAnkiConfig() {
-  const { ankiPath } = getPreferenceValues();
+  // TODO: do we need this even?
+  // const { ankiPath } = getPreferenceValues();
 
-  const mediaPath = useMemo(() => `${ankiPath}/collection.media/`, [ankiPath]);
   //const dbPath = useMemo(() => `${ankiPath}/collection.anki2`, [ankiPath])
   //const query = useMemo(() => 'SELECT crt FROM col', [])
 
@@ -27,10 +24,7 @@ function useAnkiConfig() {
   //  return data[0].crt;
   //}, [data, isLoading, error]);
 
-  return {
-    ankiPath,
-    mediaPath,
-  };
+  return {};
 }
 
 export default useAnkiConfig;

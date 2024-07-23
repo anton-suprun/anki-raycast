@@ -1,15 +1,18 @@
-import { Action, ActionPanel, confirmAlert, List, showToast } from '@raycast/api';
-import { useCachedPromise } from '@raycast/utils';
 import AddCardAction from './actions/AddCardAction';
+import BrowseCards from './browseCards';
 import CreateDeckAction from './actions/CreateDeckAction';
+import deckActions from './api/deckActions';
+import miscellaneousActions from './api/miscellaneousActions';
+import { Action, ActionPanel, confirmAlert, List, showToast, Toast } from '@raycast/api';
+import { AnkiError } from './error/AnkiError';
+import { ShortcutDictionary } from './types';
 import { StudyDeck } from './actions/StudyDeck';
 import { delay, getDeckState } from './util';
-import { deleteDeck, getDecks } from './api/deckActions';
+import { useCachedPromise } from '@raycast/utils';
 import { useCallback, useEffect, useMemo } from 'react';
-import { ShortcutDictionary } from './types';
 
 export default function Decks() {
-  const { data, isLoading, revalidate, error } = useCachedPromise(getDecks);
+  const { data, isLoading, revalidate, error } = useCachedPromise(deckActions.getDecks);
 
   const shortcuts = useMemo((): ShortcutDictionary => {
     return {
@@ -17,6 +20,7 @@ export default function Decks() {
       createNewDeck: { modifiers: ['cmd'], key: 'n' },
       deleteDeck: { modifiers: ['cmd'], key: 'd' },
       renameDeck: { modifiers: ['cmd'], key: 'r' },
+      sync: { modifiers: ['cmd'], key: 's' },
     };
   }, []);
 
@@ -27,7 +31,7 @@ export default function Decks() {
 
     if (deleteConfirm) {
       try {
-        await deleteDeck(deckName);
+        await deckActions.deleteDeck(deckName);
         await delay(1);
         revalidate();
       } catch (error: unknown) {
@@ -39,6 +43,27 @@ export default function Decks() {
       }
     }
   };
+
+  const handleSync = useCallback(async () => {
+    try {
+      await miscellaneousActions.sync();
+
+      showToast({
+        title: 'Collection sync complete',
+        style: Toast.Style.Success,
+      });
+    } catch (error: unknown) {
+      if (error instanceof AnkiError) {
+        showToast({ title: 'Anki Error', message: error.message, style: Toast.Style.Failure });
+      } else {
+        showToast({
+          title: 'Error',
+          message: 'There was an error performing this action',
+          style: Toast.Style.Failure,
+        });
+      }
+    }
+  }, []);
 
   useEffect(() => {
     if (error) {
@@ -73,14 +98,13 @@ export default function Decks() {
                 <Action.Push
                   title="Browse Deck"
                   onPop={handleUpdateCache}
-                  shortcut={shortcuts.viewDeck}
-                  target={<CreateDeckAction />}
+                  target={<BrowseCards deckName={`deck:"${deck.name}"`} />}
                 />
                 <Action.Push
                   title="Add Card To Deck"
                   onPop={handleUpdateCache}
                   shortcut={shortcuts.addCardToDeck}
-                  target={<AddCardAction />}
+                  target={<AddCardAction deckName={deck.name} />}
                 />
                 <Action.Push
                   title="Create New Deck"
@@ -93,6 +117,7 @@ export default function Decks() {
                   shortcut={shortcuts.deleteDeck}
                   onAction={async () => await handleDeleteDeck(deck.name)}
                 />
+                <Action title="Sync" shortcut={shortcuts.sync} onAction={handleSync} />
               </ActionPanel>
             }
           />

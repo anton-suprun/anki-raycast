@@ -1,57 +1,21 @@
-import { Note } from '../types';
+import { AddNoteParams, Note, UpdateNoteParams } from '../types';
 import { delay } from '../util';
 import { ankiReq } from './ankiClient';
 
-interface AddCardArgs {
-  front: string;
-  back: string;
-  deck: string;
-  tags: string;
-}
-export const addCard = async (values: AddCardArgs): Promise<void> => {
-  try {
-    await ankiReq('addNote', {
-      note: {
-        deckName: values.deck,
-        modelName: 'Basic',
-        fields: {
-          Front: values.front,
-          Back: values.back,
-        },
-        options: {
-          allowDuplicate: false,
-          duplicateScope: 'deck',
-          duplicateScopeOptions: {
-            deckName: 'Default',
-            checkChildren: false,
-            checkAllModels: false,
-          },
-        },
-        tags: values.tags.split(','),
-      },
-    });
-  } catch (error) {
-    throw new Error('Could not create new card');
-  }
-};
-
-export const notesInfo = async (noteID: number): Promise<Note[] | undefined> => {
-  try {
+export default {
+  notesInfo: async (noteID: number): Promise<Note[] | undefined> => {
     return await ankiReq('notesInfo', {
       notes: [noteID],
     });
-  } catch (error) {}
-};
+  },
 
-// TODO: update it to take query as arg
-export const findNotes = async (query: string | undefined): Promise<Note[] | undefined> => {
-  const defaultQuery = 'deck:_*';
+  findNotes: async (query: string | undefined): Promise<Note[] | undefined> => {
+    const defaultQuery = 'deck:_*';
 
-  if (!query || query.trim().length == 0) {
-    query = defaultQuery;
-  }
+    if (!query || query.trim().length == 0) {
+      query = defaultQuery;
+    }
 
-  try {
     const noteIDs: number[] = await ankiReq('findNotes', {
       query: query,
     });
@@ -60,8 +24,19 @@ export const findNotes = async (query: string | undefined): Promise<Note[] | und
       notes: noteIDs,
     });
     return notesInfo;
-  } catch (error) {
-    console.error(error);
-    throw error;
-  }
+  },
+  addNote: async (params: AddNoteParams): Promise<void> => {
+    await ankiReq('addNote', { note: params });
+  },
+  deleteNote: async (cardID: number): Promise<void> => {
+    const noteIds = await ankiReq('cardsToNotes', { cards: [cardID] });
+    await ankiReq('deleteNotes', { notes: noteIds });
+  },
+  getTags: async (): Promise<string[] | undefined> => {
+    const tags: string[] = await ankiReq('getTags');
+    return tags;
+  },
+  updateNoteFields: async (params: UpdateNoteParams): Promise<void> => {
+    await ankiReq('updateNoteFields', { note: params });
+  },
 };

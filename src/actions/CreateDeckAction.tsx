@@ -1,12 +1,12 @@
 import { Form, ActionPanel, Action, showToast, useNavigation, Toast } from '@raycast/api';
-import { createDeck } from '../api/deckActions';
+import deckActions from '../api/deckActions';
 
 const CreateDeckAction = () => {
   const { pop } = useNavigation();
 
   const handleSubmit = async (values: { deckName: string }) => {
     try {
-      await createDeck(values.deckName);
+      await deckActions.createDeck(values.deckName);
 
       await showToast({
         style: Toast.Style.Success,

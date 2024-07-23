@@ -1,6 +1,7 @@
 import { AxiosError } from 'axios';
 import apiClient from './axios';
 import { delay } from '../util';
+import { AnkiError } from '../error/AnkiError';
 
 const VERSION = 6;
 
@@ -8,15 +9,26 @@ type AnkiAction =
   | 'addNote'
   | 'answerCards'
   | 'areDue'
+  | 'cardsInfo'
+  | 'cardsToNotes'
+  | 'createDeck'
   | 'deckNames'
   | 'deckNamesAndIds'
-  | 'createDeck'
   | 'deleteDecks'
-  | 'getDeckStats'
-  | 'cardsInfo'
+  | 'deleteNotes'
   | 'findCards'
+  | 'findModelsByName'
+  | 'findNotes'
+  | 'getDeckStats'
+  | 'getMediaDirPath'
+  | 'getTags'
+  | 'guiBrowse'
+  | 'guiSelectNote'
+  | 'modelNames'
+  | 'modelNamesAndIds'
   | 'notesInfo'
-  | 'findNotes';
+  | 'sync'
+  | 'updateNoteFields';
 
 interface AnkiResponse<T> {
   result: T;
@@ -44,7 +56,7 @@ export const ankiReq = async <T>(
       const { result, error } = response.data;
 
       if (error) {
-        throw new Error(`Could not perform Anki action: ${action}. Error: ${error}`);
+        throw new AnkiError(`Error: ${error}`, action);
       }
 
       return result;
@@ -68,11 +80,12 @@ export const ankiReq = async <T>(
         }
 
         if (error.code === 'ECONNREFUSED') {
-          console.error(
-            "We are having trouble reaching your Anki application.\nEnsure you've installed anki-connect extension\nEnsure Anki is on\nEnsure you provided correct port (8765 by default)"
-          );
-          throw error;
+          throw new Error('Ensure Anki is on and anki-connect port is set in extension settings');
         }
+      }
+
+      if (error instanceof AnkiError) {
+        throw error;
       }
 
       if (error instanceof Error) {

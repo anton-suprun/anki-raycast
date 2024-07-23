@@ -1,5 +1,5 @@
 import { Color, List } from '@raycast/api';
-import { DeckStats, DeckName } from './types';
+import { DeckStats, DeckName, AddNoteParams, CreateCardFormValues, MediaFile } from './types';
 
 export const getDeckState = (deck: DeckStats): List.Item.Accessory[] => {
   return [
@@ -49,4 +49,89 @@ export function getCardType(type: number): string {
 export function getQueueType(queue: number): string {
   const queues = ['New', 'Learning', 'Review', 'Day Learn', 'Preview', 'Suspended'];
   return queues[queue] || 'Unknown';
+}
+
+// TODO: add a cleaner re-write of this
+export function transformSubmittedData(submittedData: CreateCardFormValues, modelFields: string[]) {
+  const result: AddNoteParams = {
+    deckName: submittedData.deckName,
+    modelName: submittedData.modelName,
+    fields: {},
+    tags: submittedData.tags,
+    audio: [],
+    video: [],
+    picture: [],
+  };
+
+  modelFields.forEach(fieldName => {
+    result.fields[fieldName] = submittedData[`field_${fieldName}`] || '';
+  });
+
+  modelFields.forEach(fieldName => {
+    const files = submittedData[`file_${fieldName}`] || [];
+    files.forEach((file: string) => {
+      const fileExtension = file.split('.').pop()?.toLowerCase();
+      const fileName = file.split('/').pop();
+
+      if (!fileExtension || !fileName) return;
+
+      if (['jpg', 'jpeg', 'png', 'gif'].includes(fileExtension)) {
+        result.picture.push({
+          path: `/${file}`,
+          filename: fileName,
+          fields: [fieldName],
+        });
+      } else if (['mp3', 'wav', 'ogg'].includes(fileExtension)) {
+        result.audio.push({
+          path: `/${file}`,
+          filename: fileName,
+          fields: [fieldName],
+        });
+      } else if (['mp4', 'webm', 'ogv'].includes(fileExtension)) {
+        result.video.push({
+          path: `/${file}`,
+          filename: fileName,
+          fields: [fieldName],
+        });
+      }
+    });
+  });
+
+  return result;
+}
+
+function getMediaType(filename: string): 'image' | 'audio' | 'video' {
+  const extension = filename.split('.').pop()?.toLowerCase();
+
+  const videoExtensions = ['mp4', 'mov', 'avi', 'mkv', 'webm'];
+  const audioExtensions = ['mp3', 'wav', 'ogg', 'm4a', 'flac'];
+
+  if (videoExtensions.includes(extension!)) return 'video';
+  if (audioExtensions.includes(extension!)) return 'audio';
+  return 'image';
+}
+
+export function parseMediaFiles(ankiFieldText: string): MediaFile[] {
+  const mediaFiles: MediaFile[] = [];
+
+  const imgRegex = /<img[^>]+src\s*=\s*["']([^"']+)["'][^>]*>/g;
+  const imgMatches = ankiFieldText.matchAll(imgRegex);
+  for (const match of imgMatches) {
+    mediaFiles.push({
+      type: 'image',
+      filename: match[1],
+    });
+  }
+
+  const mediaRegex = /\[sound:(.*?)\]/g;
+  const mediaMatches = ankiFieldText.matchAll(mediaRegex);
+  for (const match of mediaMatches) {
+    const filename = match[1];
+    mediaFiles.push({
+      type: getMediaType(filename),
+      filename: filename,
+    });
+  }
+
+  return mediaFiles;
 }

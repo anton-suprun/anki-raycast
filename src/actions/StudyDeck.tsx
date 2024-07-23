@@ -1,19 +1,19 @@
-import { Action, ActionPanel, Detail, showToast } from '@raycast/api';
+import { Action, ActionPanel, Detail, showToast, Toast, useNavigation } from '@raycast/api';
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Card, CardField, CardFieldObj, Ease, ShortcutDictionary } from '../types';
 import { useCachedPromise } from '@raycast/utils';
 import cardActions from '../api/cardActions';
 import useTurndown from '../hooks/useTurndown';
-import useAnkiConfig from '../hooks/useAnkiConfig';
+import { AnkiError } from '../error/AnkiError';
 
 interface Props {
   deckName: string;
 }
 
 export const StudyDeck = ({ deckName }: Props) => {
-  const { mediaPath } = useAnkiConfig();
-  const { turndown } = useTurndown(mediaPath);
+  const { turndown } = useTurndown();
 
+  const { pop } = useNavigation();
   const {
     data: cards,
     isLoading: cardsLoading,
@@ -29,12 +29,23 @@ export const StudyDeck = ({ deckName }: Props) => {
 
   const shortcuts = useMemo((): ShortcutDictionary => {
     return {
-      showCardInfo: { modifiers: ['cmd'], key: 'i' },
       againAction: { modifiers: ['ctrl'], key: '1' },
       hardAction: { modifiers: ['ctrl'], key: '2' },
       easyAction: { modifiers: ['ctrl'], key: '4' },
+      showCardInfo: { modifiers: ['cmd'], key: 'i' },
     };
   }, []);
+
+  useEffect(() => {
+    if (cardsError) {
+      const isAnkiError = cardsError instanceof AnkiError;
+      showToast({
+        title: isAnkiError ? 'Anki Error' : 'Error',
+        message: isAnkiError ? cardsError.message : 'Unknown error occured',
+        style: Toast.Style.Failure,
+      });
+    }
+  }, [cardsError]);
 
   const [showAnswer, setShowAnswer] = useState(false);
   const [showCardInfo, setShowCardInfo] = useState(false);
@@ -62,16 +73,14 @@ export const StudyDeck = ({ deckName }: Props) => {
     [turndown]
   );
 
-  //==================
   useEffect(() => {
     if (!cardsDueInfo) return;
-    console.log('cards due changed', cardsDueInfo.length);
     setCurrentCard(cardsDueInfo[0]);
   }, [cardsDueInfo]);
-  //==================
 
   const cardView = useMemo(() => {
     if (!cardsDueInfo || cardsDueLoading) return;
+
     if (cardsDueError) {
       showToast({
         title: 'Error: cardsDueError',
@@ -94,7 +103,12 @@ export const StudyDeck = ({ deckName }: Props) => {
         setShowAnswer(false);
         revalidate();
       } catch (error) {
-        console.error(error);
+        const isAnkiError = error instanceof AnkiError;
+        showToast({
+          title: isAnkiError ? 'Anki Error' : 'Error',
+          message: isAnkiError ? error.message : 'Unknown error occured',
+          style: Toast.Style.Failure,
+        });
       }
     },
     [currentCard]
@@ -106,34 +120,38 @@ export const StudyDeck = ({ deckName }: Props) => {
       isLoading={cardsLoading || cardsDueLoading}
       actions={
         <ActionPanel>
-          {!showAnswer ? (
+          {!showAnswer && cardsDueInfo?.length ? (
             <Action title="Show Answer" onAction={handleShowAnswer} />
-          ) : (
+          ) : cardsDueInfo?.length ? (
             <>
-              <Action title="Good" onAction={async () => await handleAnswerCard(Ease.Good)} />
+              <ActionPanel.Section title="Card Actions">
+                <Action title="Good" onAction={async () => await handleAnswerCard(Ease.Good)} />
+                <Action
+                  title="Again"
+                  shortcut={shortcuts.againAction}
+                  onAction={async () => await handleAnswerCard(Ease.Again)}
+                />
+                <Action
+                  title="Hard"
+                  shortcut={shortcuts.hardAction}
+                  onAction={async () => await handleAnswerCard(Ease.Hard)}
+                />
+                <Action
+                  title="Easy"
+                  shortcut={shortcuts.easyAction}
+                  onAction={async () => await handleAnswerCard(Ease.Easy)}
+                />
+              </ActionPanel.Section>
+              <ActionPanel.Section />
               <Action
-                title="Again"
-                shortcut={shortcuts.againAction}
-                onAction={async () => await handleAnswerCard(Ease.Again)}
-              />
-              <Action
-                title="Hard"
-                shortcut={shortcuts.hardAction}
-                onAction={async () => await handleAnswerCard(Ease.Hard)}
-              />
-              <Action
-                title="Easy"
-                shortcut={shortcuts.easyAction}
-                onAction={async () => await handleAnswerCard(Ease.Easy)}
+                title="Show Card Info"
+                shortcut={shortcuts.showCardInfo}
+                onAction={handleShowCardInfo}
               />
             </>
+          ) : (
+            <Action title="Go Back" onAction={pop} />
           )}
-          <ActionPanel.Section />
-          <Action
-            title="Show Card Info"
-            shortcut={shortcuts.showAnswer}
-            onAction={handleShowCardInfo}
-          />
         </ActionPanel>
       }
     />
