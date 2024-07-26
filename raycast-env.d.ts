@@ -22,6 +22,8 @@ declare namespace Preferences {
   export type BrowseCards = ExtensionPreferences & {}
   /** Preferences accessible in the `addCard` command */
   export type AddCard = ExtensionPreferences & {}
+  /** Preferences accessible in the `viewStats` command */
+  export type ViewStats = ExtensionPreferences & {}
 }
 
 declare namespace Arguments {
@@ -31,6 +33,8 @@ declare namespace Arguments {
   export type BrowseCards = {}
   /** Arguments passed to the `addCard` command */
   export type AddCard = {}
+  /** Arguments passed to the `viewStats` command */
+  export type ViewStats = {}
 }
 
 
