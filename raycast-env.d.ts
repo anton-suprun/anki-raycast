@@ -9,7 +9,11 @@
 
 type ExtensionPreferences = {
   /** anki-connect port - Port that anki-connect uses. (Default: 8765) */
-  "port"?: string
+  "port"?: string,
+  /**  - If selected, duplicate cards can be created */
+  "allow_dup_cards"?: boolean,
+  /** Duplicate Scope - Can be used to specify the scope for which duplicates are checked */
+  "dup_scope": "deck" | "collection"
 }
 
 /** Preferences accessible in all the extension's commands */
