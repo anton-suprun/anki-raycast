@@ -25,7 +25,10 @@ declare namespace Preferences {
   /** Preferences accessible in the `browseCards` command */
   export type BrowseCards = ExtensionPreferences & {}
   /** Preferences accessible in the `addCard` command */
-  export type AddCard = ExtensionPreferences & {}
+  export type AddCard = ExtensionPreferences & {
+  /**  - Enabling this will allow you to create cards with empty fields */
+  "allow_empty_card_fields"?: boolean
+}
   /** Preferences accessible in the `viewStats` command */
   export type ViewStats = ExtensionPreferences & {}
 }
