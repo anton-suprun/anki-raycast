@@ -66,7 +66,7 @@ export const StudyDeck = ({ deckName }: Props) => {
       const question = turndown.turndown(`${questionValue}\n`.replace(/\n/g, '<br>'));
 
       const answers = fields.slice(1).map(answer => {
-          return turndown.turndown(`\n\n---\n\n${answer.value}\n`.replace(/\n/g, '<br>'));
+        return turndown.turndown(`\n\n---\n\n${answer.value}\n`.replace(/\n/g, '<br>'));
       });
 
       return showAnswer ? question + answers.join('\n') : question;
